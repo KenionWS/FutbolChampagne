@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { db } from './config/db.js';
 import authRoutes from './routes/auth.js';
+import groupRoutes from './routes/groups.js';
 
 // Fix SSL certificate issue on Windows for development
 if (process.env.NODE_ENV === 'development') {
@@ -25,8 +26,8 @@ app.get('/health', (req, res) => {
 // Auth routes
 app.use('/auth', authRoutes);
 
-// Group routes (TBD)
-// app.use('/groups', groupRoutes);
+// Group routes
+app.use('/groups', groupRoutes);
 
 // Start server
 app.listen(PORT, () => {
