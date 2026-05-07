@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { groupsApi } from '../services/groupsApi';
+import { matchesApi } from '../services/matchesApi';
 import api from '../services/api';
 import './GroupPage.css';
 
@@ -23,7 +24,7 @@ function GroupPage() {
       const groupRes = await groupsApi.getGroup(parseInt(groupId));
       setGroup(groupRes.data);
 
-      const matchesRes = await api.get(`/matches/groups/${groupId}`);
+      const matchesRes = await matchesApi.getGroupMatches(groupId);
       setMatches(matchesRes.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Error loading group');
@@ -118,32 +119,84 @@ function GroupPage() {
       {selectedMatch && (
         <MatchModal
           match={selectedMatch}
+          groupId={parseInt(groupId)}
           onClose={() => setSelectedMatch(null)}
+          onUpdate={() => fetchGroupData()}
         />
       )}
     </div>
   );
 }
 
-function MatchModal({ match, onClose }) {
+function MatchModal({ match, groupId, onClose, onUpdate }) {
   const [predictions, setPredictions] = useState([]);
+  const [myPredictions, setMyPredictions] = useState({});
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newPredictionText, setNewPredictionText] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   useEffect(() => {
     fetchMatchData();
+    fetchCategories();
   }, [match.id]);
 
   const fetchMatchData = async () => {
     try {
       setLoading(true);
-      // Aquí se cargarían las predicciones y categorías
-      // const predsRes = await api.get(`/matches/${match.id}/predictions`);
-      // setPredictions(predsRes.data);
+      const predsRes = await matchesApi.getMatchPredictions(match.id);
+      setPredictions(predsRes.data);
+
+      const myPdsRes = await matchesApi.getMyPredictions(match.id);
+      const myPdsMap = {};
+      myPdsRes.data.forEach((pd) => {
+        myPdsMap[pd.category_id] = pd.prediction_text;
+      });
+      setMyPredictions(myPdsMap);
     } catch (err) {
-      console.error('Error loading match data:', err);
+      console.error('Error loading predictions:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get(`/groups/${groupId}`);
+      // Aquí deberíamos cargar categorías, por ahora mostramos ejemplos
+      setCategories([
+        { id: 1, name: 'Goleador' },
+        { id: 2, name: 'Asistencia' },
+        { id: 3, name: 'Mejor gol' },
+      ]);
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  const handleMakePrediction = async () => {
+    if (!selectedCategory || !newPredictionText.trim()) return;
+
+    try {
+      await matchesApi.makePrediction(
+        match.id,
+        selectedCategory,
+        newPredictionText
+      );
+      setNewPredictionText('');
+      setSelectedCategory('');
+      fetchMatchData();
+    } catch (err) {
+      alert('Error making prediction');
+    }
+  };
+
+  const handleVote = async (predictionId, resolved) => {
+    try {
+      await matchesApi.votePrediction(predictionId, resolved);
+      fetchMatchData();
+    } catch (err) {
+      alert('Error voting');
     }
   };
 
@@ -152,25 +205,109 @@ function MatchModal({ match, onClose }) {
       <div className="match-modal" onClick={(e) => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>×</button>
         <h2>{match.opponent_name}</h2>
-        <p>{new Date(match.match_date).toLocaleString('es-AR')}</p>
-        <p>Estado: {match.status}</p>
+        <p className="match-date">
+          {new Date(match.match_date).toLocaleString('es-AR')}
+        </p>
+        <span className={`status status-${match.status}`}>
+          {match.status}
+        </span>
+
         <div className="modal-content">
           {match.status === 'draft' && (
-            <div>
+            <div className="predictions-section">
               <h3>Haz tu predicción</h3>
-              <p>(Predicciones próximamente)</p>
+              <div className="prediction-form">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="">Selecciona categoría</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Tu predicción..."
+                  value={newPredictionText}
+                  onChange={(e) => setNewPredictionText(e.target.value)}
+                />
+                <button
+                  onClick={handleMakePrediction}
+                  className="btn-submit"
+                >
+                  Predecir
+                </button>
+              </div>
+
+              {predictions.length > 0 && (
+                <div className="predictions-list">
+                  <h4>Predicciones</h4>
+                  {predictions.map((pred) => (
+                    <div key={pred.id} className="prediction-item">
+                      <div className="prediction-text">
+                        <strong>{pred.user_name}</strong>:{' '}
+                        {pred.prediction_text}
+                        <small> ({pred.category_name})</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
           {match.status === 'voting' && (
-            <div>
-              <h3>Vota las predicciones</h3>
-              <p>(Votación próximamente)</p>
+            <div className="voting-section">
+              <h3>Vota si acertaron</h3>
+              {predictions.length > 0 ? (
+                <div className="predictions-list">
+                  {predictions.map((pred) => (
+                    <div key={pred.id} className="prediction-vote">
+                      <div className="prediction-text">
+                        <strong>{pred.user_name}</strong>: {pred.prediction_text}
+                        <small> ({pred.category_name})</small>
+                      </div>
+                      <div className="vote-buttons">
+                        <button
+                          className="btn-yes"
+                          onClick={() => handleVote(pred.id, true)}
+                        >
+                          ✓ Acertó
+                        </button>
+                        <button
+                          className="btn-no"
+                          onClick={() => handleVote(pred.id, false)}
+                        >
+                          ✗ No
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No hay predicciones</p>
+              )}
             </div>
           )}
+
           {match.status === 'resolved' && (
-            <div>
+            <div className="results-section">
               <h3>Resultados</h3>
-              <p>(Resultados próximamente)</p>
+              {predictions.length > 0 ? (
+                <div className="predictions-list">
+                  {predictions.map((pred) => (
+                    <div key={pred.id} className="prediction-result">
+                      <strong>{pred.user_name}</strong>: {pred.prediction_text}
+                      <small> ({pred.category_name})</small>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No hay predicciones</p>
+              )}
             </div>
           )}
         </div>
