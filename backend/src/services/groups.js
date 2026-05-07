@@ -19,6 +19,16 @@ export async function createGroup(userId, name) {
     [group.id, userId]
   );
 
+  // Create default categories
+  const defaultCategories = ['Goleador', 'Asistencia', 'Mejor gol'];
+  for (const cat of defaultCategories) {
+    await query(
+      `INSERT INTO prediction_categories (group_id, name, created_by)
+       VALUES ($1, $2, $3)`,
+      [group.id, cat, userId]
+    );
+  }
+
   return group;
 }
 
@@ -115,4 +125,61 @@ export async function getGroupMembers(groupId, userId) {
   );
 
   return result.rows;
+}
+
+export async function getGroupCategories(groupId, userId) {
+  // Verify user is in group
+  const member = await query(
+    'SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2',
+    [groupId, userId]
+  );
+
+  if (member.rows.length === 0) {
+    throw new Error('Not a member of this group');
+  }
+
+  const result = await query(
+    `SELECT id, name FROM prediction_categories
+     WHERE group_id = $1
+     ORDER BY name`,
+    [groupId]
+  );
+
+  return result.rows;
+}
+
+export async function leaveGroup(groupId, userId) {
+  const result = await query(
+    'DELETE FROM group_members WHERE group_id = $1 AND user_id = $2',
+    [groupId, userId]
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error('Not a member of this group');
+  }
+
+  return true;
+}
+
+export async function removeGroupMember(groupId, userId, targetUserId) {
+  // Verify user is admin of group
+  const adminCheck = await query(
+    'SELECT admin_id FROM groups WHERE id = $1',
+    [groupId]
+  );
+
+  if (adminCheck.rows.length === 0 || adminCheck.rows[0].admin_id !== userId) {
+    throw new Error('Only admin can remove members');
+  }
+
+  const result = await query(
+    'DELETE FROM group_members WHERE group_id = $1 AND user_id = $2',
+    [groupId, targetUserId]
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error('Member not found');
+  }
+
+  return true;
 }

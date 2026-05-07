@@ -16,6 +16,7 @@ import {
   votePrediction,
   getPredictionVotes,
   getVoteStatus,
+  getMyVotes,
 } from '../services/votes.js';
 
 const router = express.Router();
@@ -174,6 +175,20 @@ router.get('/:matchId/my-predictions', authMiddleware, async (req, res) => {
     res.json(predictions);
   } catch (error) {
     console.error('Get my predictions error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get my votes for match
+router.get('/:matchId/my-votes', authMiddleware, async (req, res) => {
+  try {
+    const votes = await getMyVotes(
+      parseInt(req.params.matchId),
+      req.userId
+    );
+    res.json(votes);
+  } catch (error) {
+    console.error('Get my votes error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

@@ -6,6 +6,9 @@ import {
   getUserGroups,
   joinGroup,
   getGroupMembers,
+  getGroupCategories,
+  leaveGroup,
+  removeGroupMember,
 } from '../services/groups.js';
 
 const router = express.Router();
@@ -80,6 +83,45 @@ router.get('/:id/members', authMiddleware, async (req, res) => {
     res.status(error.message.includes('Not a member') ? 403 : 500).json({
       error: error.message,
     });
+  }
+});
+
+// Get group categories
+router.get('/:id/categories', authMiddleware, async (req, res) => {
+  try {
+    const categories = await getGroupCategories(parseInt(req.params.id), req.userId);
+    res.json(categories);
+  } catch (error) {
+    console.error('Get categories error:', error.message);
+    res.status(403).json({ error: error.message });
+  }
+});
+
+// Leave group
+router.post('/:id/leave', authMiddleware, async (req, res) => {
+  try {
+    await leaveGroup(parseInt(req.params.id), req.userId);
+    res.json({ message: 'Left group' });
+  } catch (error) {
+    console.error('Leave group error:', error.message);
+    res.status(403).json({ error: error.message });
+  }
+});
+
+// Remove member from group (admin only)
+router.delete('/:id/members/:memberId', authMiddleware, async (req, res) => {
+  try {
+    await removeGroupMember(
+      parseInt(req.params.id),
+      req.userId,
+      parseInt(req.params.memberId)
+    );
+    res.json({ message: 'Member removed' });
+  } catch (error) {
+    console.error('Remove member error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
   }
 });
 

@@ -26,12 +26,20 @@ export async function votePrediction(predictionId, userId, resolved) {
     throw new Error('Not a member of this group');
   }
 
-  // Insert or update vote
+  // Check if already voted
+  const existingVote = await query(
+    'SELECT * FROM votes WHERE prediction_id = $1 AND voted_by = $2',
+    [predictionId, userId]
+  );
+
+  if (existingVote.rows.length > 0) {
+    throw new Error('You already voted on this prediction');
+  }
+
+  // Insert vote
   const result = await query(
     `INSERT INTO votes (prediction_id, voted_by, resolved)
      VALUES ($1, $2, $3)
-     ON CONFLICT (prediction_id, voted_by)
-     DO UPDATE SET resolved = $3
      RETURNING id, prediction_id, voted_by, resolved, created_at`,
     [predictionId, userId, resolved]
   );
@@ -96,4 +104,30 @@ export async function getVoteStatus(predictionId) {
       ? Math.round((votes.votes_for / votes.total_votes) * 100)
       : 0
   };
+}
+
+export async function getMyVotes(matchId, userId) {
+  // Get all votes I made on a specific match
+  const result = await query(
+    `SELECT v.id, v.prediction_id, v.resolved, p.prediction_text, pc.name as category_name,
+            u.name as predicted_by_name, v.created_at
+     FROM votes v
+     JOIN predictions p ON v.prediction_id = p.id
+     JOIN prediction_categories pc ON p.category_id = pc.id
+     JOIN users u ON p.user_id = u.id
+     WHERE p.match_id = $1 AND v.voted_by = $2
+     ORDER BY v.created_at DESC`,
+    [matchId, userId]
+  );
+
+  return result.rows;
+}
+
+export async function getMyVoteOnPrediction(predictionId, userId) {
+  const result = await query(
+    'SELECT id, resolved FROM votes WHERE prediction_id = $1 AND voted_by = $2',
+    [predictionId, userId]
+  );
+
+  return result.rows[0] || null;
 }

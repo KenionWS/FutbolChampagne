@@ -16,6 +16,7 @@ function GroupPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     fetchGroupData();
@@ -63,6 +64,26 @@ function GroupPage() {
     alert('Código copiado!');
   };
 
+  const handleLeaveGroup = async () => {
+    if (!window.confirm('¿Estás seguro de que quieres abandonar el grupo?')) return;
+    try {
+      await api.post(`/groups/${groupId}/leave`);
+      window.location.href = '/groups';
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al abandonar el grupo');
+    }
+  };
+
+  const handleDeleteMember = async (memberId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este miembro?')) return;
+    try {
+      await api.delete(`/groups/${groupId}/members/${memberId}`);
+      fetchGroupData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al eliminar el miembro');
+    }
+  };
+
   return (
     <div className="container group-page">
       <div className="group-header">
@@ -88,6 +109,16 @@ function GroupPage() {
               <button className="copy-btn" onClick={copyCode}>
                 Copiar
               </button>
+            </div>
+            <div className="group-menu">
+              <button className="menu-btn" onClick={() => setShowMenu(!showMenu)}>⋮</button>
+              {showMenu && (
+                <div className="menu-dropdown">
+                  <button onClick={handleLeaveGroup} className="menu-item leave-item">
+                    Abandonar grupo
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -164,6 +195,15 @@ function GroupPage() {
                         Unido: {new Date(member.joined_at).toLocaleDateString('es-AR')}
                       </small>
                     </div>
+                    {user?.id === group?.admin_id && user?.id !== member.id && (
+                      <button
+                        className="btn-delete-member"
+                        onClick={() => handleDeleteMember(member.id)}
+                        title="Eliminar miembro"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -250,6 +290,7 @@ function CreateMatchModal({ onClose, onCreate }) {
 function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   const [predictions, setPredictions] = useState([]);
   const [myPredictions, setMyPredictions] = useState({});
+  const [myVotes, setMyVotes] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -286,6 +327,10 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
         myPdsMap[pd.category_id] = pd.prediction_text;
       });
       setMyPredictions(myPdsMap);
+
+      // Fetch personal votes
+      const myVotesRes = await api.get(`/matches/${match.id}/my-votes`);
+      setMyVotes(myVotesRes.data);
     } catch (err) {
       console.error('Error loading predictions:', err);
     } finally {
@@ -295,11 +340,8 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
 
   const fetchCategories = async () => {
     try {
-      setCategories([
-        { id: 1, name: 'Goleador' },
-        { id: 2, name: 'Asistencia' },
-        { id: 3, name: 'Mejor gol' },
-      ]);
+      const res = await api.get(`/groups/${groupId}/categories`);
+      setCategories(res.data);
     } catch (err) {
       console.error('Error loading categories:', err);
     }
@@ -536,6 +578,25 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
               ) : (
                 <p>No hay predicciones</p>
               )}
+            </div>
+          )}
+
+          {myVotes.length > 0 && (
+            <div className="my-votes-section">
+              <h3>Mis votos</h3>
+              <div className="predictions-list">
+                {myVotes.map((vote) => (
+                  <div key={vote.id} className="my-vote-item">
+                    <div className="vote-info">
+                      <strong>{vote.predicted_by_name}</strong>: {vote.prediction_text}
+                      <small> ({vote.category_name})</small>
+                    </div>
+                    <div className={`vote-result ${vote.resolved ? 'correct' : 'incorrect'}`}>
+                      {vote.resolved ? '✓ Acertó' : '✗ No'}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
