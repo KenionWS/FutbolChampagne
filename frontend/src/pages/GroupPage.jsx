@@ -453,6 +453,15 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
     }
   };
 
+  const handleChangeMatchStatus = async (newStatus) => {
+    try {
+      await api.patch(`/matches/${match.id}/status`, { status: newStatus });
+      onUpdate();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error changing status');
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="match-modal" onClick={(e) => e.stopPropagation()}>
@@ -464,15 +473,41 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
               {new Date(match.match_date).toLocaleString('es-AR')}
             </p>
           </div>
-          {isAdmin && !isEditing && (
-            <button className="btn-edit" onClick={() => setIsEditing(true)}>
-              ✏️ Editar
-            </button>
+          <div className="match-actions">
+            {isAdmin && !isEditing && (
+              <button className="btn-edit" onClick={() => setIsEditing(true)}>
+                ✏️ Editar
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="match-status-bar">
+          <span className={`status status-${match.status}`}>
+            {match.status === 'draft' && 'Predicciones'}
+            {match.status === 'voting' && 'Votación'}
+            {match.status === 'resolved' && 'Finalizado'}
+          </span>
+          {isAdmin && (
+            <div className="status-buttons">
+              {match.status === 'draft' && (
+                <button
+                  className="btn-status"
+                  onClick={() => handleChangeMatchStatus('voting')}
+                >
+                  Marcar como jugado
+                </button>
+              )}
+              {match.status === 'voting' && (
+                <button
+                  className="btn-status"
+                  onClick={() => handleChangeMatchStatus('resolved')}
+                >
+                  Finalizar votación
+                </button>
+              )}
+            </div>
           )}
         </div>
-        <span className={`status status-${match.status}`}>
-          {match.status}
-        </span>
 
         {isEditing && isAdmin && (
           <div className="edit-form">

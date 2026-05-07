@@ -222,19 +222,15 @@ export async function getGroupStandings(groupId, userId) {
        u.id,
        u.name,
        u.picture_url,
-       COUNT(p.id) as total_predictions,
-       SUM(CASE
-         WHEN (SELECT COUNT(*) FILTER (WHERE resolved = true) FROM votes WHERE prediction_id = p.id) >
-              (SELECT COUNT(*) FILTER (WHERE resolved = false) FROM votes WHERE prediction_id = p.id)
-         THEN 1
-         ELSE 0
-       END) as correct_predictions,
-       SUM(CASE
-         WHEN (SELECT COUNT(*) FILTER (WHERE resolved = true) FROM votes WHERE prediction_id = p.id) >
-              (SELECT COUNT(*) FILTER (WHERE resolved = false) FROM votes WHERE prediction_id = p.id)
-         THEN 1
-         ELSE 0
-       END) as points
+       COUNT(DISTINCT p.id) as total_predictions,
+       COUNT(DISTINCT CASE
+         WHEN (
+           SELECT COUNT(*) FILTER (WHERE resolved = true) FROM votes WHERE prediction_id = p.id
+         ) > (
+           SELECT COUNT(*) FILTER (WHERE resolved = false) FROM votes WHERE prediction_id = p.id
+         )
+         THEN p.id
+       END) as correct_predictions
      FROM users u
      LEFT JOIN group_members gm ON u.id = gm.user_id
      LEFT JOIN predictions p ON u.id = p.user_id AND p.match_id IN (
@@ -242,7 +238,7 @@ export async function getGroupStandings(groupId, userId) {
      )
      WHERE gm.group_id = $1
      GROUP BY u.id, u.name, u.picture_url
-     ORDER BY points DESC NULLS LAST, u.name ASC`,
+     ORDER BY correct_predictions DESC NULLS LAST, u.name ASC`,
     [groupId]
   );
 
@@ -252,6 +248,6 @@ export async function getGroupStandings(groupId, userId) {
     picture_url: row.picture_url,
     total_predictions: parseInt(row.total_predictions || 0),
     correct_predictions: parseInt(row.correct_predictions || 0),
-    points: parseInt(row.points || 0)
+    points: parseInt(row.correct_predictions || 0)
   }));
 }
