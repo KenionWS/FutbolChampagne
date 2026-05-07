@@ -6,6 +6,10 @@ import {
   getMatch,
   updateMatchStatus,
   updateMatch,
+  savePlayerStats,
+  getMatchPlayerStats,
+  deletePrediction,
+  updatePrediction,
 } from '../services/matches.js';
 import {
   makePrediction,
@@ -243,5 +247,92 @@ router.get(
     }
   }
 );
+
+// Save player stats (goals, saves)
+router.post('/:matchId/player-stats', authMiddleware, async (req, res) => {
+  try {
+    const { groupId, playerId, goals, saves } = req.body;
+
+    if (!groupId || !playerId || (goals === undefined && saves === undefined)) {
+      return res.status(400).json({ error: 'groupId, playerId, and goals/saves required' });
+    }
+
+    const stats = await savePlayerStats(
+      parseInt(req.params.matchId),
+      parseInt(groupId),
+      req.userId,
+      parseInt(playerId),
+      goals !== undefined ? parseInt(goals) : 0,
+      saves !== undefined ? parseInt(saves) : 0
+    );
+
+    res.status(201).json(stats);
+  } catch (error) {
+    console.error('Save player stats error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
+  }
+});
+
+// Get match player stats
+router.get('/:matchId/player-stats', authMiddleware, async (req, res) => {
+  try {
+    const stats = await getMatchPlayerStats(parseInt(req.params.matchId), req.userId);
+    res.json(stats);
+  } catch (error) {
+    console.error('Get player stats error:', error.message);
+    res.status(403).json({ error: error.message });
+  }
+});
+
+// Delete prediction (admin only)
+router.delete('/predictions/:predictionId', authMiddleware, async (req, res) => {
+  try {
+    const { groupId } = req.body;
+
+    if (!groupId) {
+      return res.status(400).json({ error: 'groupId required' });
+    }
+
+    await deletePrediction(
+      parseInt(req.params.predictionId),
+      parseInt(groupId),
+      req.userId
+    );
+
+    res.json({ message: 'Prediction deleted' });
+  } catch (error) {
+    console.error('Delete prediction error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
+  }
+});
+
+// Update prediction (admin only)
+router.patch('/predictions/:predictionId', authMiddleware, async (req, res) => {
+  try {
+    const { groupId, predictionText } = req.body;
+
+    if (!groupId || !predictionText) {
+      return res.status(400).json({ error: 'groupId and predictionText required' });
+    }
+
+    const updated = await updatePrediction(
+      parseInt(req.params.predictionId),
+      parseInt(groupId),
+      req.userId,
+      predictionText
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update prediction error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
+  }
+});
 
 export default router;
