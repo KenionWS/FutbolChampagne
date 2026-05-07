@@ -8,6 +8,8 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [newGroupCode, setNewGroupCode] = useState(null);
   const [formData, setFormData] = useState({ groupName: '', inviteCode: '' });
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -33,9 +35,11 @@ function DashboardPage() {
     if (!formData.groupName.trim()) return;
 
     try {
-      await groupsApi.createGroup(formData.groupName);
+      const response = await groupsApi.createGroup(formData.groupName);
+      setNewGroupCode(response.data.invite_code);
       setFormData({ groupName: '', inviteCode: '' });
       setShowCreateModal(false);
+      setShowCodeModal(true);
       fetchGroups();
     } catch (err) {
       setError(err.response?.data?.error || 'Error creating group');
@@ -162,6 +166,36 @@ function DashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showCodeModal && newGroupCode && (
+        <div className="modal-overlay" onClick={() => setShowCodeModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>¡Grupo Creado!</h3>
+            <p className="code-description">Compartí este código con tus amigos:</p>
+            <div className="code-box">
+              <code>{newGroupCode}</code>
+              <button
+                type="button"
+                className="copy-btn"
+                onClick={() => {
+                  navigator.clipboard.writeText(newGroupCode);
+                  alert('Código copiado!');
+                }}
+              >
+                Copiar
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setShowCodeModal(false)}
+              style={{ width: '100%', marginTop: '1rem' }}
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       )}
