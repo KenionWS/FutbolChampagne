@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { db } from './config/db.js';
-import authMiddleware from './middleware/auth.js';
+import authRoutes from './routes/auth.js';
 
 dotenv.config();
 
@@ -18,36 +18,10 @@ app.get('/health', (req, res) => {
 });
 
 // Auth routes
-app.post('/auth/google', async (req, res) => {
-  try {
-    const { token } = req.body;
-    // TODO: Verify Google token, create/update user, return JWT
-    res.json({ message: 'Auth endpoint - TBD' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/auth/me', authMiddleware, async (req, res) => {
-  try {
-    const user = await db.query(
-      'SELECT id, email, name, picture_url FROM users WHERE id = $1',
-      [req.userId]
-    );
-    res.json(user.rows[0] || null);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+app.use('/auth', authRoutes);
 
 // Group routes (TBD)
-app.post('/groups', authMiddleware, async (req, res) => {
-  res.json({ message: 'Create group - TBD' });
-});
-
-app.get('/groups/:id', authMiddleware, async (req, res) => {
-  res.json({ message: 'Get group - TBD' });
-});
+// app.use('/groups', groupRoutes);
 
 // Start server
 app.listen(PORT, () => {
