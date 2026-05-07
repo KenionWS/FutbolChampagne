@@ -328,6 +328,7 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
   const [myPredictions, setMyPredictions] = useState({});
   const [myVotes, setMyVotes] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [playerStats, setPlayerStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ opponentName: match.opponent_name, matchDate: '' });
@@ -337,6 +338,9 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
   const [user, setUser] = useState(propUser);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
+  const [playerStatsInput, setPlayerStatsInput] = useState({});
+  const [editingPredictionId, setEditingPredictionId] = useState(null);
+  const [editingPredictionText, setEditingPredictionText] = useState('');
 
   const matchPassed = new Date(match.match_date) < new Date();
   const canVote = !matchPassed && match.status === 'voting';
@@ -345,6 +349,7 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
     fetchMatchData();
     fetchCategories();
     fetchUser();
+    fetchPlayerStats();
 
     // Format match date for edit input
     const date = new Date(match.match_date);
@@ -459,6 +464,56 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
       onUpdate();
     } catch (err) {
       alert(err.response?.data?.error || 'Error changing status');
+    }
+  };
+
+  const fetchPlayerStats = async () => {
+    try {
+      const res = await api.get(`/matches/${match.id}/player-stats`);
+      setPlayerStats(res.data);
+    } catch (err) {
+      console.error('Error loading player stats:', err);
+    }
+  };
+
+  const handleSavePlayerStats = async (playerId) => {
+    try {
+      const stats = playerStatsInput[playerId] || {};
+      await api.post(`/matches/${match.id}/player-stats`, {
+        groupId,
+        playerId,
+        goals: stats.goals || 0,
+        saves: stats.saves || 0,
+      });
+      setPlayerStatsInput({ ...playerStatsInput, [playerId]: {} });
+      fetchPlayerStats();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error saving stats');
+    }
+  };
+
+  const handleDeletePrediction = async (predictionId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar esta predicción?')) return;
+    try {
+      await api.delete(`/matches/predictions/${predictionId}`, {
+        data: { groupId }
+      });
+      fetchMatchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error deleting prediction');
+    }
+  };
+
+  const handleEditPrediction = async (predictionId, newText) => {
+    try {
+      await api.patch(`/matches/predictions/${predictionId}`, {
+        groupId,
+        predictionText: newText,
+      });
+      setEditingPredictionId(null);
+      fetchMatchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error updating prediction');
     }
   };
 
@@ -630,13 +685,133 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
                   <h4>Predicciones</h4>
                   {predictions.map((pred) => (
                     <div key={pred.id} className="prediction-item">
-                      <div className="prediction-text">
-                        <strong>{pred.user_name}</strong>:{' '}
-                        {pred.prediction_text}
-                        <small> ({pred.category_name})</small>
-                      </div>
+                      {editingPredictionId === pred.id && isAdmin ? (
+                        <div className="prediction-edit-form">
+                          <input
+                            type="text"
+                            value={editingPredictionText}
+                            onChange={(e) => setEditingPredictionText(e.target.value)}
+                            autoFocus
+                          />
+                          <div className="prediction-edit-buttons">
+                            <button
+                              className="btn-save"
+                              onClick={() => handleEditPrediction(pred.id, editingPredictionText)}
+                            >
+                              Guardar
+                            </button>
+                            <button
+                              className="btn-cancel"
+                              onClick={() => setEditingPredictionId(null)}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="prediction-text">
+                            <strong>{pred.user_name}</strong>:{' '}
+                            {pred.prediction_text}
+                            <small> ({pred.category_name})</small>
+                          </div>
+                          {isAdmin && (
+                            <div className="prediction-actions">
+                              <button
+                                className="btn-edit-small"
+                                onClick={() => {
+                                  setEditingPredictionId(pred.id);
+                                  setEditingPredictionText(pred.prediction_text);
+                                }}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                className="btn-delete-small"
+                                onClick={() => handleDeletePrediction(pred.id)}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {isAdmin && (
+                <div className="player-stats-section">
+                  <h4>Estadísticas de jugadores</h4>
+                  <div className="player-stats-form">
+                    {members.map((member) => (
+                      <div key={member.id} className="player-stat-row">
+                        <div className="player-info">
+                          {member.picture_url && (
+                            <img src={member.picture_url} alt={member.name} />
+                          )}
+                          <span>{member.name}</span>
+                        </div>
+                        <div className="player-stat-inputs">
+                          <input
+                            type="number"
+                            placeholder="Goles"
+                            min="0"
+                            value={playerStatsInput[member.id]?.goals || ''}
+                            onChange={(e) =>
+                              setPlayerStatsInput({
+                                ...playerStatsInput,
+                                [member.id]: {
+                                  ...playerStatsInput[member.id],
+                                  goals: parseInt(e.target.value) || 0,
+                                },
+                              })
+                            }
+                          />
+                          <input
+                            type="number"
+                            placeholder="Buenas atajadas"
+                            min="0"
+                            value={playerStatsInput[member.id]?.saves || ''}
+                            onChange={(e) =>
+                              setPlayerStatsInput({
+                                ...playerStatsInput,
+                                [member.id]: {
+                                  ...playerStatsInput[member.id],
+                                  saves: parseInt(e.target.value) || 0,
+                                },
+                              })
+                            }
+                          />
+                          <button
+                            className="btn-save-stats"
+                            onClick={() => handleSavePlayerStats(member.id)}
+                          >
+                            Guardar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {playerStats.length > 0 && (
+                    <div className="player-stats-display">
+                      <h5>Estadísticas registradas</h5>
+                      {playerStats.map((stat) => (
+                        <div key={stat.player_id} className="stat-row">
+                          {stat.picture_url && (
+                            <img src={stat.picture_url} alt={stat.player_name} />
+                          )}
+                          <span>{stat.player_name}</span>
+                          <div className="stat-values">
+                            <span>{stat.goals} goles</span>
+                            <span>{stat.saves} atajadas</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -873,6 +873,199 @@
   }
 }
 
+.prediction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f9f9f9;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+  border-left: 4px solid #0066cc;
+}
+
+.prediction-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-edit-small,
+.btn-delete-small {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.btn-edit-small:hover {
+  opacity: 0.7;
+}
+
+.btn-delete-small:hover {
+  opacity: 0.7;
+  color: #f44336;
+}
+
+.prediction-edit-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prediction-edit-form input {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.prediction-edit-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.prediction-edit-buttons button {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.prediction-edit-buttons .btn-save {
+  background-color: #4caf50;
+  color: white;
+}
+
+.prediction-edit-buttons .btn-save:hover {
+  background-color: #45a049;
+}
+
+.prediction-edit-buttons .btn-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.prediction-edit-buttons .btn-cancel:hover {
+  background-color: #5a6268;
+}
+
+.player-stats-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.player-stats-section h4 {
+  margin-bottom: 1rem;
+}
+
+.player-stats-form {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.player-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.player-stat-row:last-child {
+  border-bottom: none;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.player-info img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.player-stat-inputs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.player-stat-inputs input {
+  width: 70px;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.btn-save-stats {
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.btn-save-stats:hover {
+  background-color: #0052a3;
+}
+
+.player-stats-display {
+  background-color: #f0f7ff;
+  padding: 1rem;
+  border-radius: 4px;
+  border-left: 4px solid #0066cc;
+}
+
+.player-stats-display h5 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-row img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.stat-values {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+  font-weight: 500;
+  color: #0066cc;
+}
+
 @media (max-width: 768px) {
   .header-top {
     flex-direction: column;
