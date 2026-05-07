@@ -13,6 +13,7 @@ function GroupPage() {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
+  const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
@@ -36,6 +37,9 @@ function GroupPage() {
 
       const membersRes = await groupsApi.getGroupMembers(parseInt(groupId));
       setGroupMembers(membersRes.data);
+
+      const standingsRes = await api.get(`/groups/${groupId}/standings`);
+      setStandings(standingsRes.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Error loading group');
     } finally {
@@ -173,7 +177,37 @@ function GroupPage() {
 
         {activeTab === 'standings' && (
           <div className="standings-section">
-            <p>Tabla de posiciones (próximamente)</p>
+            {standings.length === 0 ? (
+              <p>No hay datos de posiciones aún</p>
+            ) : (
+              <div className="standings-table">
+                <div className="standings-header">
+                  <div className="col-position">Pos</div>
+                  <div className="col-player">Jugador</div>
+                  <div className="col-stats">Puntos</div>
+                  <div className="col-stats">Aciertos</div>
+                  <div className="col-stats">Total</div>
+                </div>
+                {standings.map((player, index) => (
+                  <div key={player.id} className="standings-row">
+                    <div className="col-position">
+                      <span className="position-badge">{index + 1}</span>
+                    </div>
+                    <div className="col-player">
+                      {player.picture_url && (
+                        <img src={player.picture_url} alt={player.name} />
+                      )}
+                      <span>{player.name}</span>
+                    </div>
+                    <div className="col-stats points">{player.points}</div>
+                    <div className="col-stats">
+                      {player.correct_predictions}/{player.total_predictions}
+                    </div>
+                    <div className="col-stats">{player.total_predictions}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -215,8 +249,10 @@ function GroupPage() {
       {selectedMatch && (
         <MatchModal
           match={selectedMatch}
+          group={group}
           groupId={parseInt(groupId)}
           members={groupMembers}
+          user={user}
           onClose={() => setSelectedMatch(null)}
           onUpdate={() => fetchGroupData()}
         />
@@ -287,7 +323,7 @@ function CreateMatchModal({ onClose, onCreate }) {
   );
 }
 
-function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
+function MatchModal({ match, group, groupId, members = [], user: propUser, onClose, onUpdate }) {
   const [predictions, setPredictions] = useState([]);
   const [myPredictions, setMyPredictions] = useState({});
   const [myVotes, setMyVotes] = useState([]);
@@ -298,7 +334,7 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   const [newPredictionText, setNewPredictionText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedMember, setSelectedMember] = useState('');
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(propUser);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
 
@@ -349,11 +385,13 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   };
 
   const fetchUser = async () => {
-    try {
-      const res = await api.get('/auth/me');
-      setUser(res.data);
-    } catch (err) {
-      console.error('Error loading user:', err);
+    if (!user) {
+      try {
+        const res = await api.get('/auth/me');
+        setUser(res.data);
+      } catch (err) {
+        console.error('Error loading user:', err);
+      }
     }
   };
 
@@ -398,7 +436,7 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
     }
   };
 
-  const isAdmin = user?.id === match.admin_id;
+  const isAdmin = user?.id === group?.admin_id;
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;

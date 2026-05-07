@@ -10,6 +10,7 @@ import {
   leaveGroup,
   removeGroupMember,
   createCategory,
+  getGroupStandings,
 } from '../services/groups.js';
 
 const router = express.Router();
@@ -114,6 +115,19 @@ router.post('/:id/categories', authMiddleware, async (req, res) => {
     res
       .status(error.message.includes('admin') ? 403 : 500)
       .json({ error: error.message });
+  }
+});
+
+// Get group standings
+router.get('/:id/standings', authMiddleware, async (req, res) => {
+  try {
+    const standings = await getGroupStandings(parseInt(req.params.id), req.userId);
+    res.json(standings);
+  } catch (error) {
+    console.error('Get standings error:', error.message);
+    res.status(error.message.includes('Not a member') ? 403 : 500).json({
+      error: error.message,
+    });
   }
 });
 
