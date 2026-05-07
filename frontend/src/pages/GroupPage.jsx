@@ -12,6 +12,7 @@ function GroupPage() {
   const [activeTab, setActiveTab] = useState('matches');
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
+  const [groupMembers, setGroupMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
@@ -31,6 +32,9 @@ function GroupPage() {
 
       const matchesRes = await matchesApi.getGroupMatches(groupId);
       setMatches(matchesRes.data);
+
+      const membersRes = await groupsApi.getGroupMembers(parseInt(groupId));
+      setGroupMembers(membersRes.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Error loading group');
     } finally {
@@ -144,7 +148,26 @@ function GroupPage() {
 
         {activeTab === 'members' && (
           <div className="members-section">
-            <p>Miembros del grupo (próximamente)</p>
+            {groupMembers.length === 0 ? (
+              <p>No hay miembros</p>
+            ) : (
+              <div className="members-list">
+                {groupMembers.map((member) => (
+                  <div key={member.id} className="member-card">
+                    {member.picture_url && (
+                      <img src={member.picture_url} alt={member.name} />
+                    )}
+                    <div className="member-info">
+                      <h4>{member.name}</h4>
+                      <p>{member.email}</p>
+                      <small>
+                        Unido: {new Date(member.joined_at).toLocaleDateString('es-AR')}
+                      </small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -153,6 +176,7 @@ function GroupPage() {
         <MatchModal
           match={selectedMatch}
           groupId={parseInt(groupId)}
+          members={groupMembers}
           onClose={() => setSelectedMatch(null)}
           onUpdate={() => fetchGroupData()}
         />
@@ -223,16 +247,16 @@ function CreateMatchModal({ onClose, onCreate }) {
   );
 }
 
-function MatchModal({ match, groupId, onClose, onUpdate }) {
+function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   const [predictions, setPredictions] = useState([]);
   const [myPredictions, setMyPredictions] = useState({});
   const [categories, setCategories] = useState([]);
-  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ opponentName: match.opponent_name, matchDate: '' });
   const [newPredictionText, setNewPredictionText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedMember, setSelectedMember] = useState('');
   const [user, setUser] = useState(null);
 
   const matchPassed = new Date(match.match_date) < new Date();
@@ -410,14 +434,28 @@ function MatchModal({ match, groupId, onClose, onUpdate }) {
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  placeholder="Tu predicción..."
-                  value={newPredictionText}
-                  onChange={(e) => setNewPredictionText(e.target.value)}
-                />
+                <select
+                  value={selectedMember}
+                  onChange={(e) => setSelectedMember(e.target.value)}
+                >
+                  <option value="">Selecciona jugador</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
                 <button
-                  onClick={handleMakePrediction}
+                  onClick={() => {
+                    if (selectedMember && selectedCategory) {
+                      const member = members.find(
+                        (m) => m.id === parseInt(selectedMember)
+                      );
+                      setNewPredictionText(member.name);
+                      handleMakePrediction();
+                      setSelectedMember('');
+                    }
+                  }}
                   className="btn-submit"
                 >
                   Predecir
