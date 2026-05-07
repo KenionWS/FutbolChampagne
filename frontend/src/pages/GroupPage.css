@@ -1,0 +1,55 @@
+.group-page {
+  padding-top: 2rem;
+}
+
+.group-header h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+}
+
+.group-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #eee;
+}
+
+.group-tabs .tab {
+  background: none;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  color: #666;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.group-tabs .tab:hover {
+  background: none;
+  color: #1a1a1a;
+}
+
+.group-tabs .tab.active {
+  color: #0066cc;
+  border-bottom-color: #0066cc;
+}
+
+.group-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .group-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .group-tabs .tab {
+    white-space: nowrap;
+    padding: 0.75rem 0.5rem;
+  }
+}
