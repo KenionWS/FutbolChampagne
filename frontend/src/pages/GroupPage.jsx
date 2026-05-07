@@ -35,10 +35,24 @@ function GroupPage() {
   if (loading) return <div className="container group-page"><p>Loading...</p></div>;
   if (error) return <div className="container group-page"><p className="error-message">{error}</p></div>;
 
+  const copyCode = () => {
+    navigator.clipboard.writeText(group?.invite_code);
+    alert('Código copiado!');
+  };
+
   return (
     <div className="container group-page">
       <div className="group-header">
-        <h2>{group?.name}</h2>
+        <div className="header-top">
+          <h2>{group?.name}</h2>
+          <div className="invite-code-box">
+            <span className="label">Código:</span>
+            <code>{group?.invite_code}</code>
+            <button className="copy-btn" onClick={copyCode}>
+              Copiar
+            </button>
+          </div>
+        </div>
         <div className="group-tabs">
           <button
             className={`tab ${activeTab === 'matches' ? 'active' : ''}`}

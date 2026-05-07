@@ -6,9 +6,53 @@
   margin-bottom: 2rem;
 }
 
-.group-header h2 {
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.group-header h2 {
   font-size: 1.8rem;
+  margin: 0;
+}
+
+.invite-code-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #f5f5f5;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+}
+
+.invite-code-box .label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.invite-code-box code {
+  font-family: monospace;
+  font-weight: bold;
+  color: #0066cc;
+  min-width: 80px;
+}
+
+.copy-btn {
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  background-color: #0052a3;
 }
 
 .group-tabs {
@@ -169,6 +213,15 @@
 }
 
 @media (max-width: 768px) {
+  .header-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .invite-code-box {
+    flex-wrap: wrap;
+  }
+
   .group-tabs {
     overflow-x: auto;
     flex-wrap: nowrap;
