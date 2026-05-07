@@ -5,6 +5,7 @@ import {
   getGroupMatches,
   getMatch,
   updateMatchStatus,
+  updateMatch,
 } from '../services/matches.js';
 import {
   makePrediction,
@@ -65,6 +66,36 @@ router.get('/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Get match error:', error.message);
     res.status(403).json({ error: error.message });
+  }
+});
+
+// Update match details
+router.patch('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { opponentName, matchDate } = req.body;
+
+    if (!opponentName || !matchDate) {
+      return res
+        .status(400)
+        .json({ error: 'opponentName and matchDate required' });
+    }
+
+    // Get match to find group
+    const match = await getMatch(parseInt(req.params.id), req.userId);
+    const updated = await updateMatch(
+      parseInt(req.params.id),
+      match.group_id,
+      req.userId,
+      opponentName,
+      new Date(matchDate)
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update match error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
   }
 });
 

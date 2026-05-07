@@ -97,3 +97,25 @@ export async function updateMatchStatus(matchId, groupId, userId, newStatus) {
 
   return result.rows[0];
 }
+
+export async function updateMatch(matchId, groupId, userId, opponentName, matchDate) {
+  // Verify user is admin of group
+  const adminCheck = await query(
+    'SELECT admin_id FROM groups WHERE id = $1',
+    [groupId]
+  );
+
+  if (adminCheck.rows.length === 0 || adminCheck.rows[0].admin_id !== userId) {
+    throw new Error('Only admin can update match');
+  }
+
+  const result = await query(
+    `UPDATE matches
+     SET opponent_name = $1, match_date = $2, updated_at = NOW()
+     WHERE id = $3 AND group_id = $4
+     RETURNING id, group_id, opponent_name, match_date, status, admin_confirmed, created_at`,
+    [opponentName, matchDate, matchId, groupId]
+  );
+
+  return result.rows[0];
+}

@@ -227,13 +227,27 @@ function MatchModal({ match, groupId, onClose, onUpdate }) {
   const [predictions, setPredictions] = useState([]);
   const [myPredictions, setMyPredictions] = useState({});
   const [categories, setCategories] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({ opponentName: match.opponent_name, matchDate: '' });
   const [newPredictionText, setNewPredictionText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [user, setUser] = useState(null);
+
+  const matchPassed = new Date(match.match_date) < new Date();
+  const canVote = !matchPassed && match.status === 'voting';
 
   useEffect(() => {
     fetchMatchData();
     fetchCategories();
+    fetchMembers();
+    fetchUser();
+
+    // Format match date for edit input
+    const date = new Date(match.match_date);
+    const isoDate = date.toISOString().slice(0, 16);
+    setEditData({ opponentName: match.opponent_name, matchDate: isoDate });
   }, [match.id]);
 
   const fetchMatchData = async () => {
@@ -257,8 +271,6 @@ function MatchModal({ match, groupId, onClose, onUpdate }) {
 
   const fetchCategories = async () => {
     try {
-      const res = await api.get(`/groups/${groupId}`);
-      // Aquí deberíamos cargar categorías, por ahora mostramos ejemplos
       setCategories([
         { id: 1, name: 'Goleador' },
         { id: 2, name: 'Asistencia' },
@@ -266,6 +278,39 @@ function MatchModal({ match, groupId, onClose, onUpdate }) {
       ]);
     } catch (err) {
       console.error('Error loading categories:', err);
+    }
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const res = await api.get(`/groups/${groupId}/members`);
+      setMembers(res.data);
+    } catch (err) {
+      console.error('Error loading members:', err);
+    }
+  };
+
+  const fetchUser = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+    } catch (err) {
+      console.error('Error loading user:', err);
+    }
+  };
+
+  const handleEditMatch = async () => {
+    if (!editData.opponentName.trim() || !editData.matchDate) return;
+
+    try {
+      await api.patch(`/matches/${match.id}`, {
+        opponentName: editData.opponentName,
+        matchDate: editData.matchDate,
+      });
+      setIsEditing(false);
+      onUpdate();
+    } catch (err) {
+      alert('Error editing match');
     }
   };
 
@@ -295,17 +340,59 @@ function MatchModal({ match, groupId, onClose, onUpdate }) {
     }
   };
 
+  const isAdmin = user?.id === match.admin_id;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="match-modal" onClick={(e) => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>×</button>
-        <h2>{match.opponent_name}</h2>
-        <p className="match-date">
-          {new Date(match.match_date).toLocaleString('es-AR')}
-        </p>
+        <div className="match-header">
+          <div>
+            <h2>{match.opponent_name}</h2>
+            <p className="match-date">
+              {new Date(match.match_date).toLocaleString('es-AR')}
+            </p>
+          </div>
+          {isAdmin && !isEditing && (
+            <button className="btn-edit" onClick={() => setIsEditing(true)}>
+              ✏️ Editar
+            </button>
+          )}
+        </div>
         <span className={`status status-${match.status}`}>
           {match.status}
         </span>
+
+        {isEditing && isAdmin && (
+          <div className="edit-form">
+            <input
+              type="text"
+              value={editData.opponentName}
+              onChange={(e) =>
+                setEditData({ ...editData, opponentName: e.target.value })
+              }
+              placeholder="Nombre del rival"
+            />
+            <input
+              type="datetime-local"
+              value={editData.matchDate}
+              onChange={(e) =>
+                setEditData({ ...editData, matchDate: e.target.value })
+              }
+            />
+            <div className="edit-buttons">
+              <button className="btn-save" onClick={handleEditMatch}>
+                Guardar
+              </button>
+              <button
+                className="btn-cancel"
+                onClick={() => setIsEditing(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="modal-content">
           {match.status === 'draft' && (
@@ -357,33 +444,41 @@ function MatchModal({ match, groupId, onClose, onUpdate }) {
           {match.status === 'voting' && (
             <div className="voting-section">
               <h3>Vota si acertaron</h3>
-              {predictions.length > 0 ? (
-                <div className="predictions-list">
-                  {predictions.map((pred) => (
-                    <div key={pred.id} className="prediction-vote">
-                      <div className="prediction-text">
-                        <strong>{pred.user_name}</strong>: {pred.prediction_text}
-                        <small> ({pred.category_name})</small>
-                      </div>
-                      <div className="vote-buttons">
-                        <button
-                          className="btn-yes"
-                          onClick={() => handleVote(pred.id, true)}
-                        >
-                          ✓ Acertó
-                        </button>
-                        <button
-                          className="btn-no"
-                          onClick={() => handleVote(pred.id, false)}
-                        >
-                          ✗ No
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {matchPassed ? (
+                <p className="warning-message">
+                  ⚠️ La fecha del partido ya pasó, no se puede votar
+                </p>
               ) : (
-                <p>No hay predicciones</p>
+                predictions.length > 0 ? (
+                  <div className="predictions-list">
+                    {predictions.map((pred) => (
+                      <div key={pred.id} className="prediction-vote">
+                        <div className="prediction-text">
+                          <strong>{pred.user_name}</strong>: {pred.prediction_text}
+                          <small> ({pred.category_name})</small>
+                        </div>
+                        {canVote && (
+                          <div className="vote-buttons">
+                            <button
+                              className="btn-yes"
+                              onClick={() => handleVote(pred.id, true)}
+                            >
+                              ✓ Acertó
+                            </button>
+                            <button
+                              className="btn-no"
+                              onClick={() => handleVote(pred.id, false)}
+                            >
+                              ✗ No
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No hay predicciones</p>
+                )
               )}
             </div>
           )}
