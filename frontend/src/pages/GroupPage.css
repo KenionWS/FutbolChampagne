@@ -655,6 +655,76 @@
   color: #c33;
 }
 
+.create-category-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f0f7ff;
+  border-radius: 4px;
+  border-left: 4px solid #0066cc;
+}
+
+.btn-add-category {
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+
+.btn-add-category:hover {
+  background-color: #0052a3;
+}
+
+.new-category-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.new-category-form input {
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.category-form-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.category-form-buttons button {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.category-form-buttons .btn-save {
+  background-color: #4caf50;
+  color: white;
+}
+
+.category-form-buttons .btn-save:hover {
+  background-color: #45a049;
+}
+
+.category-form-buttons .btn-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.category-form-buttons .btn-cancel:hover {
+  background-color: #5a6268;
+}
+
 @media (max-width: 768px) {
   .header-top {
     flex-direction: column;

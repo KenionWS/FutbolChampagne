@@ -9,6 +9,7 @@ import {
   getGroupCategories,
   leaveGroup,
   removeGroupMember,
+  createCategory,
 } from '../services/groups.js';
 
 const router = express.Router();
@@ -94,6 +95,25 @@ router.get('/:id/categories', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Get categories error:', error.message);
     res.status(403).json({ error: error.message });
+  }
+});
+
+// Create category (admin only)
+router.post('/:id/categories', authMiddleware, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Category name required' });
+    }
+
+    const category = await createCategory(parseInt(req.params.id), req.userId, name);
+    res.status(201).json(category);
+  } catch (error) {
+    console.error('Create category error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
   }
 });
 

@@ -183,3 +183,24 @@ export async function removeGroupMember(groupId, userId, targetUserId) {
 
   return true;
 }
+
+export async function createCategory(groupId, userId, categoryName) {
+  // Verify user is admin of group
+  const adminCheck = await query(
+    'SELECT admin_id FROM groups WHERE id = $1',
+    [groupId]
+  );
+
+  if (adminCheck.rows.length === 0 || adminCheck.rows[0].admin_id !== userId) {
+    throw new Error('Only admin can create categories');
+  }
+
+  const result = await query(
+    `INSERT INTO prediction_categories (group_id, name, created_by)
+     VALUES ($1, $2, $3)
+     RETURNING id, name`,
+    [groupId, categoryName, userId]
+  );
+
+  return result.rows[0];
+}

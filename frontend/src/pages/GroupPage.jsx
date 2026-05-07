@@ -299,6 +299,8 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedMember, setSelectedMember] = useState('');
   const [user, setUser] = useState(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
 
   const matchPassed = new Date(match.match_date) < new Date();
   const canVote = !matchPassed && match.status === 'voting';
@@ -306,7 +308,6 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   useEffect(() => {
     fetchMatchData();
     fetchCategories();
-    fetchMembers();
     fetchUser();
 
     // Format match date for edit input
@@ -344,15 +345,6 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
       setCategories(res.data);
     } catch (err) {
       console.error('Error loading categories:', err);
-    }
-  };
-
-  const fetchMembers = async () => {
-    try {
-      const res = await api.get(`/groups/${groupId}/members`);
-      setMembers(res.data);
-    } catch (err) {
-      console.error('Error loading members:', err);
     }
   };
 
@@ -407,6 +399,21 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
   };
 
   const isAdmin = user?.id === match.admin_id;
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    try {
+      await api.post(`/groups/${groupId}/categories`, {
+        name: newCategoryName,
+      });
+      setNewCategoryName('');
+      setShowNewCategoryForm(false);
+      fetchCategories();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error creating category');
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -464,6 +471,47 @@ function MatchModal({ match, groupId, members = [], onClose, onUpdate }) {
           {match.status === 'draft' && (
             <div className="predictions-section">
               <h3>Haz tu predicción</h3>
+
+              {isAdmin && (
+                <div className="create-category-section">
+                  {!showNewCategoryForm ? (
+                    <button
+                      className="btn-add-category"
+                      onClick={() => setShowNewCategoryForm(true)}
+                    >
+                      + Agregar categoría
+                    </button>
+                  ) : (
+                    <div className="new-category-form">
+                      <input
+                        type="text"
+                        placeholder="Nombre de la categoría"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="category-form-buttons">
+                        <button
+                          className="btn-save"
+                          onClick={handleCreateCategory}
+                        >
+                          Crear
+                        </button>
+                        <button
+                          className="btn-cancel"
+                          onClick={() => {
+                            setShowNewCategoryForm(false);
+                            setNewCategoryName('');
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="prediction-form">
                 <select
                   value={selectedCategory}
