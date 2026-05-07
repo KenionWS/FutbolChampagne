@@ -216,38 +216,55 @@ export async function getGroupStandings(groupId, userId) {
     throw new Error('Not a member of this group');
   }
 
-  // Get standings with points calculation
-  const result = await query(
-    `SELECT
-       u.id,
-       u.name,
-       u.picture_url,
-       COUNT(DISTINCT p.id) as total_predictions,
-       COUNT(DISTINCT CASE
-         WHEN (
-           SELECT COUNT(*) FILTER (WHERE resolved = true) FROM votes WHERE prediction_id = p.id
-         ) > (
-           SELECT COUNT(*) FILTER (WHERE resolved = false) FROM votes WHERE prediction_id = p.id
-         )
-         THEN p.id
-       END) as correct_predictions
+  // Get all group members
+  const membersResult = await query(
+    `SELECT u.id, u.name, u.picture_url
      FROM users u
-     LEFT JOIN group_members gm ON u.id = gm.user_id
-     LEFT JOIN predictions p ON u.id = p.user_id AND p.match_id IN (
-       SELECT id FROM matches WHERE group_id = $1
-     )
+     JOIN group_members gm ON u.id = gm.user_id
      WHERE gm.group_id = $1
-     GROUP BY u.id, u.name, u.picture_url
-     ORDER BY correct_predictions DESC NULLS LAST, u.name ASC`,
+     ORDER BY u.name ASC`,
     [groupId]
   );
 
-  return result.rows.map(row => ({
-    id: row.id,
-    name: row.name,
-    picture_url: row.picture_url,
-    total_predictions: parseInt(row.total_predictions || 0),
-    correct_predictions: parseInt(row.correct_predictions || 0),
-    points: parseInt(row.correct_predictions || 0)
-  }));
+  // For each member, calculate their points
+  const standings = [];
+  for (const member of membersResult.rows) {
+    // Count total predictions
+    const predictionsResult = await query(
+      `SELECT COUNT(*) as count
+       FROM predictions p
+       JOIN matches m ON p.match_id = m.id
+       WHERE p.user_id = $1 AND m.group_id = $2`,
+      [member.id, groupId]
+    );
+    const totalPredictions = parseInt(predictionsResult.rows[0]?.count || 0);
+
+    // Count correct predictions (majority vote)
+    const correctResult = await query(
+      `SELECT COUNT(DISTINCT p.id) as count
+       FROM predictions p
+       JOIN matches m ON p.match_id = m.id
+       WHERE p.user_id = $1 AND m.group_id = $2
+       AND (
+         SELECT COUNT(*) FROM votes v WHERE v.prediction_id = p.id AND v.resolved = true
+       ) > (
+         SELECT COUNT(*) FROM votes v WHERE v.prediction_id = p.id AND v.resolved = false
+       )`,
+      [member.id, groupId]
+    );
+    const correctPredictions = parseInt(correctResult.rows[0]?.count || 0);
+
+    standings.push({
+      id: member.id,
+      name: member.name,
+      picture_url: member.picture_url,
+      total_predictions: totalPredictions,
+      correct_predictions: correctPredictions,
+      points: correctPredictions
+    });
+  }
+
+  // Sort by points descending
+  standings.sort((a, b) => b.points - a.points);
+  return standings;
 }
