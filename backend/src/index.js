@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { db } from './config/db.js';
 import authRoutes from './routes/auth.js';
 import groupRoutes from './routes/groups.js';
+import matchRoutes from './routes/matches.js';
 
 // Fix SSL certificate issue on Windows for development
 if (process.env.NODE_ENV === 'development') {
@@ -28,6 +29,9 @@ app.use('/auth', authRoutes);
 
 // Group routes
 app.use('/groups', groupRoutes);
+
+// Match routes
+app.use('/matches', matchRoutes);
 
 // Start server
 app.listen(PORT, () => {
