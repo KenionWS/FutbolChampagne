@@ -9,10 +9,14 @@ export async function verifyGoogleToken(token) {
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
+      maxAge: '2h',
     });
-    return ticket.getPayload();
+    const payload = ticket.getPayload();
+    console.log('Token verified:', payload.email);
+    return payload;
   } catch (error) {
-    throw new Error('Invalid Google token');
+    console.error('Token verification error:', error.message);
+    throw new Error(`Invalid Google token: ${error.message}`);
   }
 }
 

@@ -24,8 +24,11 @@ router.post('/google', async (req, res) => {
       token: jwtToken,
     });
   } catch (error) {
-    console.error('Auth error:', error);
-    res.status(401).json({ error: 'Authentication failed' });
+    console.error('Auth error:', error.message, error.stack);
+    res.status(401).json({
+      error: 'Authentication failed',
+      details: error.message
+    });
   }
 });
 
