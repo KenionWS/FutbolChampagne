@@ -11,8 +11,10 @@ function GroupPage() {
   const [matches, setMatches] = useState([]);
   const [activeTab, setActiveTab] = useState('matches');
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     fetchGroupData();
@@ -24,12 +26,28 @@ function GroupPage() {
       const groupRes = await groupsApi.getGroup(parseInt(groupId));
       setGroup(groupRes.data);
 
+      const userRes = await api.get('/auth/me');
+      setUser(userRes.data);
+
       const matchesRes = await matchesApi.getGroupMatches(groupId);
       setMatches(matchesRes.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Error loading group');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateMatch = async (opponentName, matchDate) => {
+    try {
+      await api.post(`/matches/groups/${groupId}`, {
+        opponentName,
+        matchDate,
+      });
+      setShowCreateMatchModal(false);
+      fetchGroupData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error creating match');
     }
   };
 
@@ -45,13 +63,28 @@ function GroupPage() {
     <div className="container group-page">
       <div className="group-header">
         <div className="header-top">
-          <h2>{group?.name}</h2>
-          <div className="invite-code-box">
-            <span className="label">Código:</span>
-            <code>{group?.invite_code}</code>
-            <button className="copy-btn" onClick={copyCode}>
-              Copiar
-            </button>
+          <div>
+            <h2>{group?.name}</h2>
+            {user?.id === group?.admin_id && (
+              <p className="admin-badge">👑 Eres admin</p>
+            )}
+          </div>
+          <div className="header-right">
+            {user?.id === group?.admin_id && (
+              <button
+                className="btn-create-match"
+                onClick={() => setShowCreateMatchModal(true)}
+              >
+                + Crear Partido
+              </button>
+            )}
+            <div className="invite-code-box">
+              <span className="label">Código:</span>
+              <code>{group?.invite_code}</code>
+              <button className="copy-btn" onClick={copyCode}>
+                Copiar
+              </button>
+            </div>
           </div>
         </div>
         <div className="group-tabs">
@@ -124,6 +157,68 @@ function GroupPage() {
           onUpdate={() => fetchGroupData()}
         />
       )}
+
+      {showCreateMatchModal && (
+        <CreateMatchModal
+          onClose={() => setShowCreateMatchModal(false)}
+          onCreate={handleCreateMatch}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateMatchModal({ onClose, onCreate }) {
+  const [opponentName, setOpponentName] = useState('');
+  const [matchDate, setMatchDate] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!opponentName.trim() || !matchDate) {
+      alert('Completa todos los campos');
+      return;
+    }
+    onCreate(opponentName, matchDate);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="match-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="close-btn" onClick={onClose}>×</button>
+        <h2>Crear Nuevo Partido</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Rival</label>
+            <input
+              type="text"
+              placeholder="Ej: Amigos del barrio"
+              value={opponentName}
+              onChange={(e) => setOpponentName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Fecha y hora</label>
+            <input
+              type="datetime-local"
+              value={matchDate}
+              onChange={(e) => setMatchDate(e.target.value)}
+            />
+          </div>
+          <div className="form-buttons">
+            <button type="submit" className="btn-submit">
+              Crear
+            </button>
+            <button
+              type="button"
+              className="btn-cancel"
+              onClick={onClose}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
