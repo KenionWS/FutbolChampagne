@@ -33,3 +33,12 @@
   justify-content: center;
   margin-top: 2rem;
 }
+
+.error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #c33;
+}
