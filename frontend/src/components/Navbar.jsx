@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AvatarSelector from './AvatarSelector';
 import ProfileEditModal from './ProfileEditModal';
+import HowItWorksModal from './HowItWorksModal';
 
 function Navbar({ user, onLogout }) {
   const navigate = useNavigate();
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [userData, setUserData] = useState(user);
 
   const handleLogoClick = () => {
@@ -49,6 +51,14 @@ function Navbar({ user, onLogout }) {
           <h1>Fútbol Champagne</h1>
         </div>
         <div className="navbar-actions">
+          <button
+            className="btn-help"
+            onClick={() => setShowHowItWorks(true)}
+            title="¿Cómo funciona?"
+          >
+            <span className="help-icon">?</span>
+            <span className="help-label">¿Cómo funciona?</span>
+          </button>
           <div className="user-section">
             <button
               className="avatar-button"
@@ -94,6 +104,14 @@ function Navbar({ user, onLogout }) {
               onClose={() => setShowProfileEdit(false)}
               onProfileUpdate={handleProfileUpdate}
             />
+          </div>
+        </div>
+      )}
+
+      {showHowItWorks && (
+        <div className="modal-overlay" onClick={() => setShowHowItWorks(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <HowItWorksModal onClose={() => setShowHowItWorks(false)} />
           </div>
         </div>
       )}
