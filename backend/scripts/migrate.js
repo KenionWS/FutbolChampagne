@@ -7,8 +7,34 @@ dotenv.config();
 
 const migrationsDir = path.join(path.resolve(), 'migrations');
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Reintenta una operación con backoff exponencial
+// Útil para Neon free tier que puede tardar en "despertar" del auto-suspend
+async function withRetry(fn, retries = 5, delayMs = 2000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isTransient = err.message.includes('Control plane') ||
+                          err.message.includes('ECONNREFUSED') ||
+                          err.message.includes('ETIMEDOUT') ||
+                          err.message.includes('terminating connection');
+      if (!isTransient || attempt === retries) throw err;
+      console.log(`  ⏳ Reintento ${attempt}/${retries} en ${delayMs}ms... (${err.message})`);
+      await sleep(delayMs);
+      delayMs *= 2;
+    }
+  }
+}
+
 async function runMigrations() {
   try {
+    // Wakeup: una query simple para despertar Neon antes de empezar
+    console.log('🔌 Conectando a la base de datos...');
+    await withRetry(() => query('SELECT 1'));
+    console.log('✅ Base de datos lista\n');
+
     const files = fs.readdirSync(migrationsDir).sort();
 
     for (const file of files) {
@@ -23,7 +49,7 @@ async function runMigrations() {
         for (const stmt of statements) {
           if (stmt.trim()) {
             try {
-              await query(stmt);
+              await withRetry(() => query(stmt), 3, 1500);
             } catch (err) {
               const errorMsg = err.message.toLowerCase();
               if (errorMsg.includes('already exists') ||
