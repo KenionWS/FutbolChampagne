@@ -36,8 +36,8 @@ export async function authenticateUser(googlePayload) {
 
   // Generate JWT
   const jwtToken = jwt.sign(
-    { userId: user.id, email: user.email },
-    process.env.JWT_SECRET,
+    { id: user.id, email: user.email },
+    process.env.JWT_SECRET || 'your-secret-key',
     { expiresIn: '7d' }
   );
 

@@ -239,20 +239,27 @@ export async function getGroupStandings(groupId, userId) {
     );
     const totalPredictions = parseInt(predictionsResult.rows[0]?.count || 0);
 
-    // Count correct predictions (majority vote)
+    // Count correct predictions from prediction_results table
     const correctResult = await query(
-      `SELECT COUNT(DISTINCT p.id) as count
-       FROM predictions p
+      `SELECT COUNT(*) as count
+       FROM prediction_results pr
+       JOIN predictions p ON pr.prediction_id = p.id
        JOIN matches m ON p.match_id = m.id
-       WHERE p.user_id = $1 AND m.group_id = $2
-       AND (
-         SELECT COUNT(*) FROM votes v WHERE v.prediction_id = p.id AND v.resolved = true
-       ) > (
-         SELECT COUNT(*) FROM votes v WHERE v.prediction_id = p.id AND v.resolved = false
-       )`,
+       WHERE p.user_id = $1 AND m.group_id = $2 AND pr.is_correct = true`,
       [member.id, groupId]
     );
     const correctPredictions = parseInt(correctResult.rows[0]?.count || 0);
+
+    // Get average rating for this player (from this group's matches only)
+    const ratingResult = await query(
+      `SELECT ROUND(AVG(pmr.rating)::numeric, 1) as avg_rating, COUNT(*) as rating_count
+       FROM player_match_ratings pmr
+       JOIN matches m ON pmr.match_id = m.id
+       WHERE pmr.player_id = $1 AND m.group_id = $2`,
+      [member.id, groupId]
+    );
+    const avgRating = parseFloat(ratingResult.rows[0]?.avg_rating || 0);
+    console.log(`Player ${member.name} (${member.id}): avg_rating=${avgRating}, count=${ratingResult.rows[0]?.rating_count}`);
 
     standings.push({
       id: member.id,
@@ -260,7 +267,8 @@ export async function getGroupStandings(groupId, userId) {
       picture_url: member.picture_url,
       total_predictions: totalPredictions,
       correct_predictions: correctPredictions,
-      points: correctPredictions
+      points: correctPredictions,
+      average_rating: avgRating
     });
   }
 

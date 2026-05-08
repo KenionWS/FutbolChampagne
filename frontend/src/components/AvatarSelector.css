@@ -1,0 +1,180 @@
+.avatar-selector {
+  padding: var(--spacing-lg);
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 500px;
+  height: calc(100vh - 2rem);
+  overflow: scroll;
+}
+
+.avatar-selector-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.avatar-selector-header h3 {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.error-text {
+  color: var(--color-error);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.avatar-tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.avatar-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--color-text-light);
+  padding: var(--spacing-md);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.avatar-tab:hover:not(:disabled) {
+  color: var(--color-text);
+  background: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.avatar-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-champagne);
+}
+
+.avatar-tab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.photo-upload-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.photo-upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.photo-upload-input {
+  display: none;
+}
+
+.photo-upload-area {
+  border: 2px dashed var(--color-champagne);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  text-align: center;
+  background: linear-gradient(135deg, rgba(27, 94, 32, 0.05), rgba(212, 175, 55, 0.05));
+  transition: all var(--transition-fast);
+}
+
+.photo-upload-label:hover .photo-upload-area {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, rgba(27, 94, 32, 0.1), rgba(212, 175, 55, 0.1));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.photo-upload-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.photo-upload-text {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.photo-upload-hint {
+  color: var(--color-text-light);
+  font-size: 0.85rem;
+}
+
+.avatar-preview {
+  text-align: center;
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, rgba(27, 94, 32, 0.1), rgba(212, 175, 55, 0.1));
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 2px solid var(--color-champagne);
+}
+
+.avatar-emoji {
+  font-size: 4rem;
+  display: inline-block;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.emoji-button {
+  font-size: 2rem;
+  padding: var(--spacing-md);
+  border: 2px solid var(--color-border);
+  background: white;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.emoji-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
+}
+
+.emoji-button.selected {
+  border-color: var(--color-champagne);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(232, 197, 71, 0.1));
+  box-shadow: 0 0 0 2px var(--color-champagne);
+  transform: scale(1.15);
+}
+
+.emoji-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-close-modal {
+  width: 100%;
+  padding: var(--spacing-md);
+  background-color: var(--color-light-secondary);
+  color: var(--color-text);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 700;
+  transition: all var(--transition-fast);
+}
+
+.btn-close-modal:hover:not(:disabled) {
+  background-color: var(--color-border);
+}
+
+.btn-close-modal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

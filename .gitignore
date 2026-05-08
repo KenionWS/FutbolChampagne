@@ -33,3 +33,6 @@ Thumbs.db
 
 # Development
 .nodemon.json
+
+# Uploads (avatares subidos localmente — no commitear)
+backend/uploads/

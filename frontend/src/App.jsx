@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import api from './services/api';
+import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import GroupPage from './pages/GroupPage';
+import PlayerStatsPage from './pages/PlayerStatsPage';
 import './App.css';
 
 function App() {
@@ -51,15 +53,7 @@ function App() {
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
       <Router>
         <div className="App">
-          {user && (
-            <nav className="navbar">
-              <h1>⚽ El Bidón</h1>
-              <div>
-                <span>{user.name}</span>
-                <button onClick={handleLogout}>Logout</button>
-              </div>
-            </nav>
-          )}
+          {user && <Navbar user={user} onLogout={handleLogout} />}
           <Routes>
             <Route
               path="/"
@@ -68,6 +62,10 @@ function App() {
             <Route
               path="/groups/:groupId"
               element={user ? <GroupPage /> : <Navigate to="/" />}
+            />
+            <Route
+              path="/groups/:groupId/player/:playerId"
+              element={user ? <PlayerStatsPage /> : <Navigate to="/" />}
             />
           </Routes>
         </div>

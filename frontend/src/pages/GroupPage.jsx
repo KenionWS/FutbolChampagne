@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { groupsApi } from '../services/groupsApi';
 import { matchesApi } from '../services/matchesApi';
 import api from '../services/api';
@@ -7,6 +7,7 @@ import './GroupPage.css';
 
 function GroupPage() {
   const { groupId } = useParams();
+  const navigate = useNavigate();
   const [group, setGroup] = useState(null);
   const [matches, setMatches] = useState([]);
   const [activeTab, setActiveTab] = useState('matches');
@@ -186,10 +187,15 @@ function GroupPage() {
                   <div className="col-player">Jugador</div>
                   <div className="col-stats">Puntos</div>
                   <div className="col-stats">Aciertos</div>
-                  <div className="col-stats">Total</div>
+                  <div className="col-stats">Promedio</div>
                 </div>
                 {standings.map((player, index) => (
-                  <div key={player.id} className="standings-row">
+                  <div
+                    key={player.id}
+                    className="standings-row"
+                    onClick={() => navigate(`/groups/${groupId}/player/${player.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className="col-position">
                       <span className="position-badge">{index + 1}</span>
                     </div>
@@ -203,7 +209,9 @@ function GroupPage() {
                     <div className="col-stats">
                       {player.correct_predictions}/{player.total_predictions}
                     </div>
-                    <div className="col-stats">{player.total_predictions}</div>
+                    <div className="col-stats">
+                      {player.average_rating > 0 ? (parseFloat(player.average_rating) || 0).toFixed(1) : '-'} ⭐
+                    </div>
                   </div>
                 ))}
               </div>
@@ -218,7 +226,12 @@ function GroupPage() {
             ) : (
               <div className="members-list">
                 {groupMembers.map((member) => (
-                  <div key={member.id} className="member-card">
+                  <div
+                    key={member.id}
+                    className="member-card"
+                    onClick={() => navigate(`/groups/${groupId}/player/${member.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     {member.picture_url && (
                       <img src={member.picture_url} alt={member.name} />
                     )}
@@ -232,7 +245,10 @@ function GroupPage() {
                     {user?.id === group?.admin_id && user?.id !== member.id && (
                       <button
                         className="btn-delete-member"
-                        onClick={() => handleDeleteMember(member.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMember(member.id);
+                        }}
                         title="Eliminar miembro"
                       >
                         ✕
@@ -326,7 +342,6 @@ function CreateMatchModal({ onClose, onCreate }) {
 function MatchModal({ match, group, groupId, members = [], user: propUser, onClose, onUpdate }) {
   const [predictions, setPredictions] = useState([]);
   const [myPredictions, setMyPredictions] = useState({});
-  const [myVotes, setMyVotes] = useState([]);
   const [categories, setCategories] = useState([]);
   const [playerStats, setPlayerStats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -341,15 +356,23 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
   const [playerStatsInput, setPlayerStatsInput] = useState({});
   const [editingPredictionId, setEditingPredictionId] = useState(null);
   const [editingPredictionText, setEditingPredictionText] = useState('');
+  const [votes, setVotes] = useState({});
+  const [voteResults, setVoteResults] = useState({});
+  const [playerRatings, setPlayerRatings] = useState({});
+  const [myPlayerRatings, setMyPlayerRatings] = useState({});
+  const [predictionResults, setPredictionResults] = useState({});
 
   const matchPassed = new Date(match.match_date) < new Date();
   const canVote = !matchPassed && match.status === 'voting';
 
   useEffect(() => {
-    fetchMatchData();
-    fetchCategories();
-    fetchUser();
-    fetchPlayerStats();
+    const loadData = async () => {
+      await fetchCategories();
+      await fetchMatchData();
+      await fetchUser();
+      await fetchPlayerStats();
+    };
+    loadData();
 
     // Format match date for edit input
     const date = new Date(match.match_date);
@@ -370,9 +393,44 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
       });
       setMyPredictions(myPdsMap);
 
-      // Fetch personal votes
-      const myVotesRes = await api.get(`/matches/${match.id}/my-votes`);
-      setMyVotes(myVotesRes.data);
+      // Fetch categories first if not loaded
+      let catsToUse = categories;
+      if (!categories || categories.length === 0) {
+        try {
+          const catsRes = await api.get(`/groups/${groupId}/categories`);
+          catsToUse = catsRes.data;
+          setCategories(catsRes.data);
+        } catch (err) {
+          console.error('Error loading categories:', err);
+          catsToUse = [];
+        }
+      }
+
+      // Fetch voting results for all categories
+      if (catsToUse.length > 0) {
+        const votingPromises = catsToUse.map((cat) =>
+          api.get(`/matches/${match.id}/${cat.id}/vote-results`)
+            .then((res) => ({ categoryId: cat.id, data: res.data }))
+            .catch(() => ({ categoryId: cat.id, data: [] }))
+        );
+        const votingResults = await Promise.all(votingPromises);
+        const voteMap = {};
+        votingResults.forEach((result) => {
+          voteMap[result.categoryId] = result.data;
+        });
+        setVoteResults(voteMap);
+      }
+
+      // Fetch player ratings
+      const ratingsRes = await api.get(`/matches/${match.id}/player-ratings`).catch(() => ({ data: [] }));
+      setPlayerRatings(ratingsRes.data);
+
+      const myRatingsRes = await api.get(`/matches/${match.id}/my-player-ratings`).catch(() => ({ data: [] }));
+      const myRatingsMap = {};
+      myRatingsRes.data.forEach((rating) => {
+        myRatingsMap[rating.player_id] = rating.rating;
+      });
+      setMyPlayerRatings(myRatingsMap);
     } catch (err) {
       console.error('Error loading predictions:', err);
     } finally {
@@ -432,12 +490,43 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
     }
   };
 
-  const handleVote = async (predictionId, resolved) => {
+  const handleVote = async (categoryId, playerVotedForId) => {
     try {
-      await matchesApi.votePrediction(predictionId, resolved);
+      await api.post(`/matches/${match.id}/vote`, {
+        categoryId,
+        playerVotedForId: playerVotedForId || null,
+      });
+      const updatedVotes = { ...votes, [categoryId]: playerVotedForId };
+      setVotes(updatedVotes);
       fetchMatchData();
     } catch (err) {
-      alert('Error voting');
+      console.error('Vote error:', err);
+      alert(err.response?.data?.error || 'Error voting');
+    }
+  };
+
+  const handleSavePlayerRatings = async () => {
+    try {
+      const ratings = members.map((member) => ({
+        playerId: member.id,
+        rating: myPlayerRatings[member.id] || 5,
+      }));
+      await api.post(`/matches/${match.id}/player-ratings`, { ratings });
+      alert('Calificaciones guardadas!');
+      fetchMatchData();
+    } catch (err) {
+      console.error('Save ratings error:', err);
+      alert(err.response?.data?.error || 'Error saving ratings');
+    }
+  };
+
+  const handleFinalizePredictions = async () => {
+    if (!window.confirm('¿Estás seguro de finalizar la votación?')) return;
+    try {
+      await api.post(`/matches/${match.id}/finalize-voting`, { groupId });
+      onUpdate();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error finalizing predictions');
     }
   };
 
@@ -819,80 +908,217 @@ function MatchModal({ match, group, groupId, members = [], user: propUser, onClo
 
           {match.status === 'voting' && (
             <div className="voting-section">
-              <h3>Vota si acertaron</h3>
+              <h3>¿Quién lo hizo?</h3>
               {matchPassed ? (
                 <p className="warning-message">
                   ⚠️ La fecha del partido ya pasó, no se puede votar
                 </p>
               ) : (
-                predictions.length > 0 ? (
-                  <div className="predictions-list">
-                    {predictions.map((pred) => (
-                      <div key={pred.id} className="prediction-vote">
-                        <div className="prediction-text">
-                          <strong>{pred.user_name}</strong>: {pred.prediction_text}
-                          <small> ({pred.category_name})</small>
-                        </div>
-                        {canVote && (
-                          <div className="vote-buttons">
-                            <button
-                              className="btn-yes"
-                              onClick={() => handleVote(pred.id, true)}
-                            >
-                              ✓ Acertó
-                            </button>
-                            <button
-                              className="btn-no"
-                              onClick={() => handleVote(pred.id, false)}
-                            >
-                              ✗ No
-                            </button>
+                <>
+                  {predictions.length > 0 && (
+                    <div className="voting-categories">
+                      {categories
+                        .filter((cat) => predictions.some((p) => p.category_id === cat.id))
+                        .map((category) => {
+                          const categoryPredictions = predictions.filter(
+                            (p) => p.category_id === category.id
+                          );
+                          return (
+                            <div key={category.id} className="voting-category-card">
+                              <h4>{category.name}</h4>
+                              <div className="category-predictions">
+                                {categoryPredictions.map((pred) => (
+                                  <p key={pred.id} className="prediction-item">
+                                    <strong>{pred.user_name}</strong>: {pred.prediction_text}
+                                  </p>
+                                ))}
+                              </div>
+                            {canVote && (
+                              <div className="voting-options">
+                                {members.map((member) => (
+                                  <button
+                                    key={member.id}
+                                    className={`vote-option ${
+                                      votes[category.id] === member.id ? 'selected' : ''
+                                    }`}
+                                    onClick={() => handleVote(category.id, member.id)}
+                                  >
+                                    {member.picture_url && (
+                                      <img src={member.picture_url} alt={member.name} />
+                                    )}
+                                    <span>{member.name}</span>
+                                  </button>
+                                ))}
+                                <button
+                                  className={`vote-option ${
+                                    votes[category.id] === null ? 'selected' : ''
+                                  }`}
+                                  onClick={() => handleVote(category.id, null)}
+                                >
+                                  <span>Otro</span>
+                                </button>
+                              </div>
+                            )}
+                            {voteResults[category.id]?.length > 0 && (
+                              <div className="voting-results">
+                                <h5>Resultados</h5>
+                                {voteResults[category.id].map((result, idx) => (
+                                  <div key={idx} className="result-bar">
+                                    {result.picture_url && (
+                                      <img src={result.picture_url} alt={result.player_name} />
+                                    )}
+                                    <span className="result-name">
+                                      {result.player_name || 'Otro'}
+                                    </span>
+                                    <div className="result-bar-container">
+                                      <div
+                                        className="result-bar-fill"
+                                        style={{ width: `${result.percentage}%` }}
+                                      />
+                                    </div>
+                                    <span className="result-percentage">
+                                      {result.vote_count} ({result.percentage}%)
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {canVote && (
+                    <div className="player-ratings-section">
+                      <h3>Calificar jugadores</h3>
+                      <div className="player-ratings-grid">
+                        {members.map((member) => (
+                          <div key={member.id} className="rating-card">
+                            {member.picture_url && (
+                              <img src={member.picture_url} alt={member.name} />
+                            )}
+                            <h5>{member.name}</h5>
+                            <div className="rating-input">
+                              <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={myPlayerRatings[member.id] || 5}
+                                onChange={(e) =>
+                                  setMyPlayerRatings({
+                                    ...myPlayerRatings,
+                                    [member.id]: parseInt(e.target.value),
+                                  })
+                                }
+                              />
+                              <span className="rating-value">
+                                {myPlayerRatings[member.id] || 5} ⭐
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No hay predicciones</p>
-                )
+                      <button className="btn-save-ratings" onClick={handleSavePlayerRatings}>
+                        Guardar calificaciones
+                      </button>
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div className="finalize-section">
+                      <button className="btn-finalize" onClick={handleFinalizePredictions}>
+                        ✓ Finalizar votación y calcular resultados
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
 
           {match.status === 'resolved' && (
             <div className="results-section">
-              <h3>Resultados</h3>
-              {predictions.length > 0 ? (
-                <div className="predictions-list">
-                  {predictions.map((pred) => (
-                    <div key={pred.id} className="prediction-result">
-                      <strong>{pred.user_name}</strong>: {pred.prediction_text}
-                      <small> ({pred.category_name})</small>
-                    </div>
-                  ))}
+              <h3>Resultados finales</h3>
+              {predictions.length > 0 && (
+                <div className="results-by-category">
+                  {categories
+                    .filter((cat) => predictions.some((p) => p.category_id === cat.id))
+                    .map((category) => {
+                      const categoryPredictions = predictions.filter(
+                        (p) => p.category_id === category.id
+                      );
+                      return (
+                        <div key={category.id} className="category-results">
+                          <h4>{category.name}</h4>
+                          {voteResults[category.id]?.length > 0 && (
+                          <div className="voting-summary">
+                            <h5>Votos</h5>
+                            {voteResults[category.id].map((result, idx) => (
+                              <div key={idx} className="result-bar">
+                                {result.picture_url && (
+                                  <img src={result.picture_url} alt={result.player_name} />
+                                )}
+                                <span className="result-name">
+                                  {result.player_name || 'Otro'}
+                                </span>
+                                <div className="result-bar-container">
+                                  <div
+                                    className="result-bar-fill"
+                                    style={{ width: `${result.percentage}%` }}
+                                  />
+                                </div>
+                                <span className="result-percentage">
+                                  {result.vote_count} ({result.percentage}%)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {categoryPredictions.length > 0 && (
+                          <div className="predictions-verdict">
+                            <h5>Predicciones</h5>
+                            {categoryPredictions.map((pred) => (
+                              <div key={pred.id} className="prediction-verdict-item">
+                                <div className="prediction-info">
+                                  <strong>{pred.user_name}</strong>: {pred.prediction_text}
+                                </div>
+                                <div className="verdict-badge">
+                                  {pred.is_correct ? (
+                                    <span className="correct">✓ Acertó</span>
+                                  ) : (
+                                    <span className="incorrect">✗ No acertó</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <p>No hay predicciones</p>
               )}
-            </div>
-          )}
 
-          {myVotes.length > 0 && (
-            <div className="my-votes-section">
-              <h3>Mis votos</h3>
-              <div className="predictions-list">
-                {myVotes.map((vote) => (
-                  <div key={vote.id} className="my-vote-item">
-                    <div className="vote-info">
-                      <strong>{vote.predicted_by_name}</strong>: {vote.prediction_text}
-                      <small> ({vote.category_name})</small>
-                    </div>
-                    <div className={`vote-result ${vote.resolved ? 'correct' : 'incorrect'}`}>
-                      {vote.resolved ? '✓ Acertó' : '✗ No'}
-                    </div>
+              {playerRatings && playerRatings.length > 0 && (
+                <div className="player-ratings-summary">
+                  <h3>Calificaciones de jugadores</h3>
+                  <div className="ratings-grid">
+                    {playerRatings.map((rating) => (
+                      <div key={rating.player_id} className="rating-summary-card">
+                        {rating.picture_url && (
+                          <img src={rating.picture_url} alt={rating.name} />
+                        )}
+                        <h5>{rating.name}</h5>
+                        <p className="rating-average">
+                          {(parseFloat(rating.average_rating) || 0).toFixed(1)} ⭐
+                        </p>
+                        <p className="rating-count">({rating.rating_count || 0} votos)</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>

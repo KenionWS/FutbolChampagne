@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { db } from './config/db.js';
 import authRoutes from './routes/auth.js';
 import groupRoutes from './routes/groups.js';
@@ -13,11 +15,31 @@ if (process.env.NODE_ENV === 'development') {
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: process.env.FRONTEND_URL }));
+// CORS: acepta múltiples orígenes separados por coma en FRONTEND_URL
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(url => url.trim());
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (Postman, curl, mobile apps)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS bloqueado para origen: ${origin}`));
+  },
+  credentials: true,
+}));
 app.use(express.json());
+
+// === ARCHIVOS ESTÁTICOS (deshabilitado junto con upload de fotos) ===
+// Para reactivar: descomentar y reactivar el endpoint /auth/avatar/upload
+// app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Health check
 app.get('/health', (req, res) => {

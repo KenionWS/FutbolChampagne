@@ -18,9 +18,12 @@ import {
 } from '../services/predictions.js';
 import {
   votePrediction,
-  getPredictionVotes,
-  getVoteStatus,
-  getMyVotes,
+  getVotingResults,
+  finalizePredictions,
+  savePlayerRatings,
+  getPlayerAverageRatings,
+  getUserPlayerRatings,
+  getPredictionResults,
 } from '../services/votes.js';
 
 const router = express.Router();
@@ -197,56 +200,119 @@ router.get('/:matchId/my-votes', authMiddleware, async (req, res) => {
   }
 });
 
-// Vote on prediction
-router.post('/predictions/:predictionId/vote', authMiddleware, async (req, res) => {
+// Vote for player in category
+router.post('/:matchId/vote', authMiddleware, async (req, res) => {
   try {
-    const { resolved } = req.body;
+    const { categoryId, playerVotedForId } = req.body;
 
-    if (resolved === undefined) {
-      return res.status(400).json({ error: 'resolved required' });
+    if (!categoryId) {
+      return res.status(400).json({ error: 'categoryId required' });
     }
 
+    // playerVotedForId can be null (for "Otro") or a valid user ID
+    const playerIdToVote = playerVotedForId ? parseInt(playerVotedForId) : null;
+
     const vote = await votePrediction(
-      parseInt(req.params.predictionId),
+      parseInt(req.params.matchId),
+      parseInt(categoryId),
       req.userId,
-      resolved
+      playerIdToVote
     );
 
     res.status(201).json(vote);
   } catch (error) {
     console.error('Vote error:', error.message);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get voting results for category
+router.get('/:matchId/:categoryId/vote-results', authMiddleware, async (req, res) => {
+  try {
+    const results = await getVotingResults(
+      parseInt(req.params.matchId),
+      parseInt(req.params.categoryId)
+    );
+    res.json(results);
+  } catch (error) {
+    console.error('Get vote results error:', error.message);
     res.status(403).json({ error: error.message });
   }
 });
 
-// Get prediction votes
-router.get('/predictions/:predictionId/votes', authMiddleware, async (req, res) => {
+// Finalize predictions (admin only)
+router.post('/:matchId/finalize-voting', authMiddleware, async (req, res) => {
   try {
-    const votes = await getPredictionVotes(
-      parseInt(req.params.predictionId),
+    const { groupId } = req.body;
+
+    if (!groupId) {
+      return res.status(400).json({ error: 'groupId required' });
+    }
+
+    const result = await finalizePredictions(
+      parseInt(req.params.matchId),
+      parseInt(groupId),
       req.userId
     );
-    res.json(votes);
+
+    res.json(result);
   } catch (error) {
-    console.error('Get votes error:', error.message);
+    console.error('Finalize voting error:', error.message);
+    res
+      .status(error.message.includes('admin') ? 403 : 500)
+      .json({ error: error.message });
+  }
+});
+
+// Save player ratings
+router.post('/:matchId/player-ratings', authMiddleware, async (req, res) => {
+  try {
+    const { ratings } = req.body;
+
+    if (!Array.isArray(ratings)) {
+      return res.status(400).json({ error: 'ratings array required' });
+    }
+
+    const results = await savePlayerRatings(
+      parseInt(req.params.matchId),
+      req.userId,
+      ratings
+    );
+
+    res.status(201).json(results);
+  } catch (error) {
+    console.error('Save ratings error:', error.message);
     res.status(403).json({ error: error.message });
   }
 });
 
-// Get vote status (consensus)
-router.get(
-  '/predictions/:predictionId/vote-status',
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const status = await getVoteStatus(parseInt(req.params.predictionId));
-      res.json(status);
-    } catch (error) {
-      console.error('Get vote status error:', error.message);
-      res.status(500).json({ error: error.message });
-    }
+// Get average player ratings
+router.get('/:matchId/player-ratings', authMiddleware, async (req, res) => {
+  try {
+    const ratings = await getPlayerAverageRatings(
+      parseInt(req.params.matchId),
+      req.userId
+    );
+    res.json(ratings);
+  } catch (error) {
+    console.error('Get ratings error:', error.message);
+    res.status(403).json({ error: error.message });
   }
-);
+});
+
+// Get my player ratings
+router.get('/:matchId/my-player-ratings', authMiddleware, async (req, res) => {
+  try {
+    const ratings = await getUserPlayerRatings(
+      parseInt(req.params.matchId),
+      req.userId
+    );
+    res.json(ratings);
+  } catch (error) {
+    console.error('Get my ratings error:', error.message);
+    res.status(403).json({ error: error.message });
+  }
+});
 
 // Save player stats (goals, saves)
 router.post('/:matchId/player-stats', authMiddleware, async (req, res) => {
