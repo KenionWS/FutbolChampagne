@@ -11,15 +11,21 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Reintenta una operación con backoff exponencial
 // Útil para Neon free tier que puede tardar en "despertar" del auto-suspend
-async function withRetry(fn, retries = 5, delayMs = 2000) {
+async function withRetry(fn, retries = 6, delayMs = 3000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       return await fn();
     } catch (err) {
-      const isTransient = err.message.includes('Control plane') ||
-                          err.message.includes('ECONNREFUSED') ||
-                          err.message.includes('ETIMEDOUT') ||
-                          err.message.includes('terminating connection');
+      const msg = err.message.toLowerCase();
+      const isTransient = msg.includes('control plane') ||
+                          msg.includes('econnrefused') ||
+                          msg.includes('etimedout') ||
+                          msg.includes('terminating connection') ||
+                          msg.includes('connection terminated') ||
+                          msg.includes('connection timeout') ||
+                          msg.includes('timeout') ||
+                          msg.includes('socket hang up') ||
+                          msg.includes('reset');
       if (!isTransient || attempt === retries) throw err;
       console.log(`  ⏳ Reintento ${attempt}/${retries} en ${delayMs}ms... (${err.message})`);
       await sleep(delayMs);
